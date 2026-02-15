@@ -7,15 +7,23 @@ on:
 jobs:
   run:
     runs-on: ubuntu-latest
+    # 失败重试策略：最多重试2次（总共运行3次）
+    strategy:
+      max-parallel: 1
+      fail-fast: false
+      matrix:
+        attempts: [1, 2, 3]
     steps:
       - name: 检出仓库
         uses: actions/checkout@v3
+      
       - name: 创建node
         uses: actions/setup-node@v3
         with:
           node-version: 18
           cache: 'npm'
           cache-dependency-path: ./api/package-lock.json
+      
       - name: Cache node_modules in api directory
         id: cache-npm
         uses: actions/cache@v3
@@ -24,10 +32,14 @@ jobs:
           key: ${{ runner.os }}-node-${{ hashFiles('./api/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-node-
+      
       - name: 安装依赖
-        run: npm run install
+        run: npm install  # 修复：npm run install 是无效命令
+        working-directory: ./api  # 新增：指定在api目录执行
         if: ${{ steps.cache-npm.outputs.cache-hit != 'true' }}
+      
       - name: 签到
         run: npm run main
+        working-directory: ./api  # 新增：指定在api目录执行
         env:
           USERINFO: ${{ secrets.USERINFO }}
