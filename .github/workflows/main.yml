@@ -1,5 +1,5 @@
 name: main
-于:
+on:
   workflow_dispatch:  # 手动触发
   schedule:
     # UTC时间16:01 → 北京时间00:01（UTC+8），符合凌晨签到需求
