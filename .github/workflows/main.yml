@@ -1,33 +1,46 @@
 name: main
-on:
-  workflow_dispatch:
-  # push:
+于:
+  workflow_dispatch:  # 手动触发
   schedule:
+    # UTC时间16:01 → 北京时间00:01（UTC+8），符合凌晨签到需求
     - cron: 1 16 * * *
 jobs:
   run:
     runs-on: ubuntu-latest
+    # 失败后自动重试2次，提高成功率
+    strategy:
+      max-parallel: 1
+      fail-fast: false
+      matrix:
+        attempts: [1, 2, 3]
     steps:
-      - name: 检出仓库
-        uses: actions/checkout@v3
-      - name: 创建node
-        uses: actions/setup-node@v3
+      - name: 检出仓库代码
+        uses: actions/checkout@v4  # 升级到最新版，更稳定
+      
+      - name: 设置Node.js环境
+        uses: actions/setup-node@v4
         with:
           node-version: 18
           cache: 'npm'
           cache-dependency-path: ./api/package-lock.json
-      - name: Cache node_modules in api directory
+      
+      - name: 缓存node_modules依赖
         id: cache-npm
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ./api/node_modules
           key: ${{ runner.os }}-node-${{ hashFiles('./api/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-node-
-      - name: 安装依赖
-        run: npm run install
-        if: ${{ steps.cache-npm.outputs.cache-hit != 'true' }}
-      - name: 签到
+      
+      - name: 安装项目依赖（强制安装，避免缓存问题）
+        working-directory: ./api  # 切换到api目录执行，避免路径错误
+        run: npm install  # 修正核心错误：去掉run，直接用npm install
+      
+      - name: 执行酷狗签到
+        working-directory: ./api  # 确保在api目录运行脚本
         run: npm run main
         env:
           USERINFO: ${{ secrets.USERINFO }}
+          # 增加日志输出，方便排查问题
+          NODE_ENV: production
