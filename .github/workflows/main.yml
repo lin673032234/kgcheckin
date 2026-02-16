@@ -33,11 +33,27 @@ jobs:
         if: ${{ steps.cache-npm.outputs.cache-hit != 'true' }}
 
       - name: 签到（最多3次，间隔5分钟）
-        uses: nick-fields/retry@v2
-        with:
-          timeout_minutes: 5
-          max_attempts: 3
-          retry_wait_seconds: 300
-          command: npm run main --prefix ./api
+        run: |
+          # 切换到 api 目录
+          cd ./api
+          # 最多重试3次，间隔5分钟
+          MAX_ATTEMPTS=3
+          RETRY_DELAY=300
+          for ((attempt=1; attempt<=MAX_ATTEMPTS; attempt++)); do
+            echo "第 $attempt 次尝试签到..."
+            if npm run main; then
+              echo "签到成功！"
+              exit 0
+            else
+              echo "第 $attempt 次签到失败"
+              if [ $attempt -lt $MAX_ATTEMPTS ]; then
+                echo "等待 $RETRY_DELAY 秒后重试..."
+                sleep $RETRY_DELAY
+              else
+                echo "达到最大重试次数，签到失败！"
+                exit 1
+              fi
+            fi
+          done
         env:
           USERINFO: ${{ secrets.USERINFO }}
