@@ -1,7 +1,6 @@
 name: main
 on:
   workflow_dispatch:
-  # push:
   schedule:
     - cron: 1 16 * * *
 jobs:
@@ -11,14 +10,14 @@ jobs:
       - name: 检出仓库
         uses: actions/checkout@v3
 
-      - name: 创建node
+      - name: 配置Node环境
         uses: actions/setup-node@v3
         with:
           node-version: 18
           cache: 'npm'
           cache-dependency-path: ./api/package-lock.json
 
-      - name: Cache node_modules in api directory
+      - name: 缓存api目录依赖
         id: cache-npm
         uses: actions/cache@v3
         with:
@@ -27,29 +26,31 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-node-
 
-      - name: 安装依赖
-        run: npm run install
+      - name: 安装依赖（缓存未命中时执行）
+        run: npm install
         working-directory: ./api
         if: ${{ steps.cache-npm.outputs.cache-hit != 'true' }}
 
-      - name: 调试：检查目录和文件
-        run: |
-          echo "当前目录: $(pwd)"
-          echo "根目录文件:"
-          ls -la
-          echo "api目录文件:"
-          ls -la ./api || echo "api目录不存在"
-          if [ -f ./api/package.json ]; then
-            echo "api/package.json 存在，内容前20行:"
-            head -20 ./api/package.json
-          else
-            echo "api/package.json 不存在！"
-          fi
-
-      - name: 签到（直接执行，先不重试）
+      - name: 签到（最多3次重试，间隔5分钟）
         run: |
           cd ./api
-          echo "签到时的目录: $(pwd)"
-          npm run main
+          MAX_ATTEMPTS=3
+          RETRY_DELAY=300
+          for ((attempt=1; attempt<=MAX_ATTEMPTS; attempt++)); do
+            echo "第 $attempt 次尝试签到..."
+            if node main.js; then
+              echo "签到成功！"
+              exit 0
+            else
+              echo "第 $attempt 次签到失败"
+              if [ $attempt -lt $MAX_ATTEMPTS ]; then
+                echo "等待 $RETRY_DELAY 秒后重试..."
+                sleep $RETRY_DELAY
+              else
+                echo "达到最大重试次数，签到失败！"
+                exit 1
+              fi
+            fi
+          done
         env:
           USERINFO: ${{ secrets.USERINFO }}
