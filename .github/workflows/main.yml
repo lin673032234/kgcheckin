@@ -7,21 +7,17 @@ on:
 jobs:
   run:
     runs-on: ubuntu-latest
-    # 新增：失败重试策略（最多重试2次，共运行3次）
-    strategy:
-      max-parallel: 1
-      fail-fast: false
-      matrix:
-        attempts: [1, 2, 3]
     steps:
       - name: 检出仓库
         uses: actions/checkout@v3
+
       - name: 创建node
         uses: actions/setup-node@v3
         with:
           node-version: 18
           cache: 'npm'
           cache-dependency-path: ./api/package-lock.json
+
       - name: Cache node_modules in api directory
         id: cache-npm
         uses: actions/cache@v3
@@ -30,10 +26,19 @@ jobs:
           key: ${{ runner.os }}-node-${{ hashFiles('./api/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-node-
+
       - name: 安装依赖
         run: npm run install
+        working-directory: ./api
         if: ${{ steps.cache-npm.outputs.cache-hit != 'true' }}
-      - name: 签到
-        run: npm run main
+
+      - name: 签到（最多3次，间隔5分钟）
+        uses: nick-fields/retry@v2
+        with:
+          timeout_minutes: 5
+          max_attempts: 3
+          retry_wait_seconds: 300
+          command: npm run main
+          working-directory: ./api
         env:
           USERINFO: ${{ secrets.USERINFO }}
