@@ -38,7 +38,6 @@ jobs:
           timeout_minutes: 5
           max_attempts: 3
           retry_wait_seconds: 300
-          # 修正：在command内部切换目录，不再使用working-directory参数
-          command: cd ./api && npm run main
+          command: npm run main --prefix ./api
         env:
           USERINFO: ${{ secrets.USERINFO }}
