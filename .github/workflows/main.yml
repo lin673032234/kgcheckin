@@ -32,7 +32,7 @@ jobs:
         working-directory: ./api  # 确保在 api 目录安装依赖
         if: ${{ steps.cache-npm.outputs.cache-hit != 'true' }}
 
-      - name: 签到（直接执行 main.js，带3次重试）
+      - name: 签到（直接执行 main.js，带3次重试，日志和原版一致）
         run: |
           cd ./api
           MAX_ATTEMPTS=3
@@ -40,8 +40,9 @@ jobs:
           attempt=1
           while [ $attempt -le $MAX_ATTEMPTS ]; do
             echo "==================== 第 $attempt 次尝试签到 ===================="
-            # 核心修改：直接用 node 执行 main.js，彻底绕过 npm 脚本问题
+            # 核心修改：先执行 node main.js，让所有日志完整输出
             node main.js
+            # 再捕获退出码判断成败
             result=$?
             if [ $result -eq 0 ]; then
               echo "==================== 第 $attempt 次签到成功 ===================="
