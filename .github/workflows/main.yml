@@ -10,13 +10,15 @@ jobs:
     steps:
       - name: 检出仓库
         uses: actions/checkout@v3
-      - name: 创建node
+
+      - name: 创建node环境
         uses: actions/setup-node@v3
         with:
           node-version: 18
           cache: 'npm'
-          cache-dependency-path: ./api/package-lock.json  # 保留api目录锁文件缓存
-      - name: Cache node_modules in api directory
+          cache-dependency-path: ./api/package-lock.json
+
+      - name: 缓存 api 目录的 node_modules
         id: cache-npm
         uses: actions/cache@v3
         with:
@@ -24,19 +26,22 @@ jobs:
           key: ${{ runner.os }}-node-${{ hashFiles('./api/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-node-
-      - name: 安装依赖（切换到api目录执行）
-        run: npm run install
-        working-directory: ./api  # 核心修复：指定在api目录执行
+
+      - name: 安装依赖（缓存未命中时执行）
+        run: npm install
+        working-directory: ./api  # 确保在 api 目录安装依赖
         if: ${{ steps.cache-npm.outputs.cache-hit != 'true' }}
-      - name: 签到（3次重试，间隔5分钟）
+
+      - name: 签到（直接执行 main.js，带3次重试）
         run: |
-          cd ./api  # 切换到api目录
-          MAX_ATTEMPTS=3  # 最多3次尝试
-          RETRY_DELAY=300 # 失败后间隔5分钟重试
+          cd ./api
+          MAX_ATTEMPTS=3
+          RETRY_DELAY=300
           attempt=1
           while [ $attempt -le $MAX_ATTEMPTS ]; do
-            echo "==================== 第 $attempt 次执行签到 ===================="
-            npm run main
+            echo "==================== 第 $attempt 次尝试签到 ===================="
+            # 核心修改：直接用 node 执行 main.js，彻底绕过 npm 脚本问题
+            node main.js
             result=$?
             if [ $result -eq 0 ]; then
               echo "==================== 第 $attempt 次签到成功 ===================="
