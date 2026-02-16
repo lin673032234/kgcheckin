@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   # push:
   schedule:
-    - cron: 8 19 * * *
+    - cron: 8 19 * * *  # 保留你设定的 UTC 19:08 触发（对应北京时间次日 03:08）
 jobs:
   run:
     runs-on: ubuntu-latest
@@ -15,7 +15,7 @@ jobs:
         with:
           node-version: 18
           cache: 'npm'
-          cache-dependency-path: ./api/package-lock.json
+          cache-dependency-path: ./api/package-lock.json  # 保留api目录锁文件缓存
       - name: Cache node_modules in api directory
         id: cache-npm
         uses: actions/cache@v3
@@ -24,10 +24,34 @@ jobs:
           key: ${{ runner.os }}-node-${{ hashFiles('./api/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-node-
-      - name: 安装依赖
+      - name: 安装依赖（切换到api目录执行）
         run: npm run install
+        working-directory: ./api  # 核心修复：指定在api目录执行
         if: ${{ steps.cache-npm.outputs.cache-hit != 'true' }}
-      - name: 签到
-        run: npm run main
+      - name: 签到（3次重试，间隔5分钟）
+        run: |
+          cd ./api  # 切换到api目录
+          MAX_ATTEMPTS=3  # 最多3次尝试
+          RETRY_DELAY=300 # 失败后间隔5分钟重试
+          attempt=1
+          while [ $attempt -le $MAX_ATTEMPTS ]; do
+            echo "==================== 第 $attempt 次执行签到 ===================="
+            npm run main
+            result=$?
+            if [ $result -eq 0 ]; then
+              echo "==================== 第 $attempt 次签到成功 ===================="
+              exit 0
+            else
+              echo "==================== 第 $attempt 次签到失败 ===================="
+              if [ $attempt -lt $MAX_ATTEMPTS ]; then
+                echo "等待 $RETRY_DELAY 秒（5分钟）后重试..."
+                sleep $RETRY_DELAY
+              else
+                echo "==================== 3次重试全部失败 ===================="
+                exit 1
+              fi
+            fi
+            attempt=$((attempt + 1))
+          done
         env:
           USERINFO: ${{ secrets.USERINFO }}
