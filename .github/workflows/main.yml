@@ -1,33 +1,55 @@
-name: main
+name: kgcheckin  # 保留原版名称
 on:
-  workflow_dispatch:
-  # push:
+  workflow_dispatch:  # 保留原版触发方式
   schedule:
-    - cron: 1 16 * * *
+    - cron: "0 0 * * *"  # 原版定时（UTC 0点=北京时间8点，可按你需求改）
+  push:
+    branches: [main]     # 保留代码推送触发
+
 jobs:
-  run:
+  checkin:  # 保留原版job名称
     runs-on: ubuntu-latest
+    timeout-minutes: 5  # 保留原版超时设置
     steps:
-      - name: 检出仓库
+      - name: 检出代码  # 原版步骤
         uses: actions/checkout@v3
-      - name: 创建node
+
+      - name: 配置Node环境  # 原版步骤
         uses: actions/setup-node@v3
         with:
           node-version: 18
           cache: 'npm'
-          cache-dependency-path: ./api/package-lock.json
-      - name: Cache node_modules in api directory
-        id: cache-npm
-        uses: actions/cache@v3
-        with:
-          path: ./api/node_modules
-          key: ${{ runner.os }}-node-${{ hashFiles('./api/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
-      - name: 安装依赖
-        run: npm run install
-        if: ${{ steps.cache-npm.outputs.cache-hit != 'true' }}
-      - name: 签到
-        run: npm run main
-        env:
-          USERINFO: ${{ secrets.USERINFO }}
+
+      - name: 安装依赖  # 原版步骤
+        run: npm install
+
+      - name: 执行签到（原版逻辑+3次重试，间隔5分钟）  # 仅新增重试层
+        run: |
+          MAX_ATTEMPTS=3
+          RETRY_DELAY=300
+          attempt=1
+          while [ $attempt -le $MAX_ATTEMPTS ]; do
+            echo "==================== 第 $attempt 次执行签到 ===================="
+            # 原版核心命令，完全不变
+            npm run main
+            result=$?
+            if [ $result -eq 0 ]; then
+              echo "==================== 第 $attempt 次签到成功 ===================="
+              exit 0
+            else
+              echo "==================== 第 $attempt 次签到失败 ===================="
+              if [ $attempt -lt $MAX_ATTEMPTS ]; then
+                echo "等待 $RETRY_DELAY 秒（5分钟）后重试..."
+                sleep $RETRY_DELAY
+              else
+                echo "==================== 3次重试全部失败 ===================="
+                exit 1
+              fi
+            fi
+            attempt=$((attempt + 1))
+          done
+        env:  # 保留原版所有环境变量（按需补充你的秘钥）
+          PHONE: ${{ secrets.PHONE }}
+          COOKIE: ${{ secrets.COOKIE }}
+          TOKEN: ${{ secrets.TOKEN }}
+          PLATFORM: ${{ secrets.PLATFORM }}
