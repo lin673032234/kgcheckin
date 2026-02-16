@@ -40,9 +40,9 @@ jobs:
           attempt=1
           while [ $attempt -le $MAX_ATTEMPTS ]; do
             echo "==================== 第 $attempt 次尝试签到 ===================="
-            # 核心修改：先执行 node main.js，让所有日志完整输出
+            # 核心修改：直接执行 node main.js，不拦截任何输出
             node main.js
-            # 再捕获退出码判断成败
+            # 捕获执行结果的退出码
             result=$?
             if [ $result -eq 0 ]; then
               echo "==================== 第 $attempt 次签到成功 ===================="
