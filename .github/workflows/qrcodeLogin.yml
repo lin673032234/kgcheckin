@@ -3,9 +3,17 @@ on:
   workflow_dispatch:
     inputs:
       number:
-        description: "需要登录几个账号?"
+        description: "需要登录几个账号？"
         required: true
         default: 1
+      append_user:
+        description: "是否追加新账号？（不删除已存在账号信息）"
+        required: true
+        default: "否"
+        type: choice
+        options:
+          - 是
+          - 否
 jobs:
   run:
     runs-on: ubuntu-latest
@@ -49,3 +57,5 @@ jobs:
           NUMBER: ${{ github.event.inputs.number }}
           PAT: ${{ secrets.PAT }}
           GITHUB_REPOSITORY: ${{ github.repository }}
+          USERINFO: ${{ secrets.USERINFO }}
+          APPEND_USER: ${{ github.event.inputs.append_user }}
